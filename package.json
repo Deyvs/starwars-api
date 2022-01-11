@@ -1,0 +1,19 @@
+{
+  "name": "starwars-api",
+  "version": "0.0.1",
+  "description": "projeto starwars",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keyword": [
+    "node",
+    "api"
+  ],
+  "author": "Deyvison Ramos",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.24.0",
+    "express": "^4.17.2"
+  }
+}
