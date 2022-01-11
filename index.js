@@ -15,27 +15,46 @@ app.get('/starwars/films/:moveId', async function(req, res) {
 
     const { moveId } = req.params;
     const url = `${BASE_URL}/films/${moveId}`;
-
     const { data } = await axios.get(url);
 
+    const people = await Promise.all(
+        data.characters
+            .map(async characters => axios.get(characters))
+    )
+
+    const basePeople = people.map(({ data }) => data)
+    const allCharacters = basePeople.map(({ name, gender }) => ({ name, gender }))
+    
+    console.log(allCharacters)
     const response = {
         title: data.title,
         director: data.director,
         releaseDate: data.release_date,
-        people: data.characters
+        characters: allCharacters
     }
 
     res.json(response)
 })
 
-app.get('/starwars/species/:page', async function(req, res) {
-    const { page } = req.params;
-
-    const url = `${BASE_URL}/species?page=${page}`;
-
+app.get('/starwars/species', async function(req, res) {
+    const url = `${BASE_URL}/species`;
     const { data } = await axios.get(url);
-    const { results, next } = data;
-    res.json(results)
+    const { results } = data;
+
+    const mammals = results.filter(results => results.classification === 'mammal');
+
+    const response = {
+        count: mammals.length,
+        species: mammals.map(mammal => {
+            return {
+                name: mammal.name,
+                classification: mammal.classification,
+                designation: mammal.designation
+            }
+        })
+    }
+
+    res.json(response)
 })
 
 
