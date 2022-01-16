@@ -1,62 +1,105 @@
 const express = require('express');
-const axios = require('axios');
 const app = express();
+const { getFilms,
+        getFilmsByMovieId,
+        getPersonByPeopleList,
+        getSpeciesByPage        
+} = require('./services/starwars');
 
-const BASE_URL = 'https://swapi.dev/api';
+const { getSpeciesByType,
+        buildSpeciesResponse        
+} = require('./utils/species');
 
-app.get('/starwars/films', async function(req, res) {
-    const url = `${BASE_URL}/films`;
 
-    const { data } = await axios.get(url);
-    res.json(data);
+app.get('/starwars/films', async (req, res) => {
+    try {
+        const { status, data } = await getFilms();
+        res.json(data);
+    } catch(error) {
+        if(error.response) {
+            const { response } = error;
+
+            if(response.status === 404) {
+                res.status(404).send("Filme não encontrado");
+            } else if(response.status === 408) {
+                res.status(408).send("Tempo de resposta excedido.");
+            } else {
+                res.status(500).send("Erro interno do servidor");
+            }
+        } else {
+            res.status(500).send("Erro interno do servidor.")
+        }
+    } 
 })
 
-app.get('/starwars/films/:moveId', async function(req, res) {
-
-    const { moveId } = req.params;
-    const url = `${BASE_URL}/films/${moveId}`;
-    const { data } = await axios.get(url);
-
-    const people = await Promise.all(
-        data.characters
-            .map(async characters => axios.get(characters))
-    )
-
-    const basePeople = people.map(({ data }) => data)
-    const allCharacters = basePeople.map(({ name, gender }) => ({ name, gender }))
+app.get('/starwars/films/:movieId', async function(req, res) {
+    try {
+        const { movieId } = req.params;
+        const { data } = await getFilmsByMovieId(movieId);
     
-    console.log(allCharacters)
-    const response = {
-        title: data.title,
-        director: data.director,
-        releaseDate: data.release_date,
-        characters: allCharacters
-    }
+        const { characters } = data;
+        const peopleResponse = await getPersonByPeopleList(characters);
+        const peopleByNameAndGender = peopleResponse.map(({ data }) => data)
+                                                    .map(({ name, gender }) => ({ name, gender })
+        )
+       
+        res.json({
+            title: data.title,
+            director: data.director,
+            releaseDate: data.release_date,
+            characters: peopleByNameAndGender
+        })
+    }catch {
+        if(error.response) {
+            const { response } = error;
 
-    res.json(response)
+            if(response.status === 404) {
+                res.status(404).send("Filme não encontrado");
+            } else if(response.status === 408) {
+                res.status(408).send("Tempo de resposta excedido.");
+            } else {
+                res.status(500).send("Erro interno do servidor");
+            }
+        } else {
+            res.status(500).send("Erro interno do servidor.")
+        }
+    }    
 })
 
 app.get('/starwars/species', async function(req, res) {
-    const url = `${BASE_URL}/species`;
-    const { data } = await axios.get(url);
-    const { results } = data;
+    try {
+        const { page, specieType = 'all '} = req.query;
 
-    const mammals = results.filter(results => results.classification === 'mammal');
+        if (!page) {
+            throw newError('Page is required')
+        }
+        const { status, data } = await getSpeciesByPage(page);
+        const { results, next } = data;
 
-    const response = {
-        count: mammals.length,
-        species: mammals.map(mammal => {
-            return {
-                name: mammal.name,
-                classification: mammal.classification,
-                designation: mammal.designation
+        const species = specieType ==='all' ? results : getSpeciesByType(results, specieType)
+        const response = {
+            next: next,
+            count: species.length,
+            species: buildSpeciesResponse(species)
             }
-        })
+        
+        res.json(response)
+
+    } catch(error) {
+        if(error.response) {
+            const { response } = error;
+
+            if(response.status === 404) {
+                res.status(404).send("Filme não encontrado");
+            } else if(response.status === 408) {
+                res.status(408).send("Tempo de resposta excedido.");
+            } else {
+                res.status(500).send("Erro interno do servidor");
+            }
+        } else {
+            res.status(500).send("Erro interno do servidor.")
+        }
     }
+});
 
-    res.json(response)
-})
-
-
-
-app.listen(3008, console.log('Running on port 3008'))
+app.listen("3008", console.log("Running on port 3008"))
